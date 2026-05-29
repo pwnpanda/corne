@@ -68,21 +68,50 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 }
 
 #ifdef OLED_ENABLE
-// crkbd.c renders the Corne logo on the slave half using font glyphs 0x80+,
-// but this build's font (lib/glcdfont.c) is the plain ASCII font with no logo
-// there — so the slave drew garbage ("snow"). Render clean ASCII on both halves
-// instead. Returning false skips crkbd.c's snowy logo render.
+// The OLED is portrait (~5 chars wide), so lines stack top-to-bottom. The
+// master shows, stacked: layer name, Caps state, last key pressed. We render
+// ASCII (lib/glcdfont.c has no logo glyphs, which is why the slave's default
+// logo render showed "snow"); returning false skips that render.
+
+// Map a basic keycode to a printable char for the "last key" line.
+static const char code_to_name[60] PROGMEM = {
+    ' ', ' ', ' ', ' ', 'a', 'b', 'c', 'd', 'e', 'f',
+    'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+    'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+    'R', 'E', 'B', 'T', ' ', '-', '=', '[', ']', '\\',
+    '#', ';', '\'', '`', ',', '.', '/', ' ', ' ', ' '};
+static uint8_t last_kc = 0;
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    if (record->event.pressed) {
+        // Strip mod-tap / layer-tap down to the tapped keycode.
+        if ((keycode >= QK_MOD_TAP && keycode <= QK_MOD_TAP_MAX) ||
+            (keycode >= QK_LAYER_TAP && keycode <= QK_LAYER_TAP_MAX)) {
+            keycode &= 0xFF;
+        }
+        if (keycode < 60) last_kc = keycode;
+    }
+    return true;
+}
+
 bool oled_task_user(void) {
     if (is_keyboard_master()) {
-        oled_write_P(PSTR("Layer: "), false);
+        oled_write_ln_P(PSTR("Layer"), false);
         switch (get_highest_layer(layer_state)) {
-            case 1:  oled_write_ln_P(PSTR("Lower"),  false); break;
-            case 2:  oled_write_ln_P(PSTR("Raise"),  false); break;
-            case 3:  oled_write_ln_P(PSTR("Adjust"), false); break;
-            default: oled_write_ln_P(PSTR("Base"),   false); break;
+            case 1:  oled_write_ln_P(PSTR("Lower"), false); break;
+            case 2:  oled_write_ln_P(PSTR("Raise"), false); break;
+            case 3:  oled_write_ln_P(PSTR("Adj"),   false); break;
+            default: oled_write_ln_P(PSTR("Base"),  false); break;
         }
+        oled_write_ln_P(PSTR(""), false);
+        oled_write_ln_P(PSTR("Caps"), false);
+        oled_write_ln_P(host_keyboard_led_state().caps_lock ? PSTR("ON") : PSTR("off"), false);
+        oled_write_ln_P(PSTR(""), false);
+        oled_write_ln_P(PSTR("Key"), false);
+        oled_write_char(pgm_read_byte(&code_to_name[last_kc]), false);
     } else {
-        oled_write_P(PSTR("corne\nv2.5\nwired"), false);
+        oled_write_P(PSTR("corne\nwired"), false);
     }
     return false;
 }
