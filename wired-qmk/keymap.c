@@ -119,9 +119,10 @@ bool oled_task_user(void) {
     oled_clear();
     if (is_keyboard_master()) {
         // Three columns down the screen: layer | last keys | locks.
-        // Rendered ROW BY ROW (no oled_set_cursor — that corrupts memory in
-        // rotated mode). Each portrait row is 5 chars: [col0] [gap] [col2]
-        // [gap] [col4]. Columns sit at char positions 0, 2 and 4.
+        // Rendered ROW BY ROW; we never reposition the cursor (jumping it past
+        // the panel's 4-line grid corrupts memory in rotated mode). Each
+        // portrait row is 5 chars: [col0] [gap] [col2] [gap] [col4]. Columns
+        // sit at char positions 0, 2 and 4.
         const char *layer;
         switch (get_highest_layer(layer_state)) {
             case 1:  layer = "NUMBER"; break;
