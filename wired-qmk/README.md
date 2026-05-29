@@ -33,6 +33,21 @@ so the OLED fits easily with headroom. The cost: no Vial GUI — you change the
 layout by editing `keymap.c` and recompiling. Your full layout is already in
 `keymap.c`, so it's ready to go.
 
+## Verified build sizes
+
+Compiled `crkbd/rev1` on 2026-05-29 (avr-gcc 14.2; QMK's reference avr-gcc 8
+usually comes out a little smaller). atmega32u4 budget = 28672 bytes.
+
+| Build | Used | Free |
+|-------|------|------|
+| Option A — Vial + OLED + trims | 27544 (96%) | 1128 B |
+| Option B — plain QMK + OLED | 19320 (67%) | 9352 B |
+
+Both fit. **Option A is tight (~1.1 KB free)** — note the stock crkbd `vial`
+keymap also ships `COMBO_ENABLE = no` and `EXTRAKEY_ENABLE = no`, so the Vial
+delete combo and media keys are OFF. Re-enabling either may overflow Option A;
+they fit comfortably under Option B.
+
 ## Build
 
 Use the **Vial-QMK** fork for Option A (mainline QMK has no `VIAL_ENABLE`);

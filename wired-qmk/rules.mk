@@ -16,6 +16,9 @@ RGB_MATRIX_ENABLE = no
 
 # ---- Displays: the goal of these trims ---------------------------------------
 OLED_ENABLE = yes
+# The stock crkbd `vial` keymap sets `OLED_DRIVER = SSD1306` (uppercase), which
+# this QMK version rejects once OLED is enabled. Force lowercase:
+OLED_DRIVER = ssd1306
 
 # ---- Flash trims (atmega32u4 has ~28 KB usable) ------------------------------
 MOUSEKEY_ENABLE = no   # mouse keys unused
