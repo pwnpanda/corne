@@ -42,27 +42,28 @@
     };
 
     macros {
-        // Layer switch + underglow colour, in one binding.
-        // Base = dim white, lower = blue, raise = green, adjust = red.
+        // Layer switch + underglow, in one binding.
+        // Base = LEDs OFF (saves battery); lower = blue, raise = green,
+        // adjust = red. Non-base macros RGB_ON first, since base turned it off.
         l0: layer0 {
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&to 0>, <&rgb_ug RGB_COLOR_HSB(0,0,40)>;
+            bindings = <&to 0>, <&rgb_ug RGB_OFF>;
         };
         l1: layer1 {
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&to 1>, <&rgb_ug RGB_COLOR_HSB(225,100,60)>;
+            bindings = <&to 1>, <&rgb_ug RGB_ON>, <&rgb_ug RGB_COLOR_HSB(225,100,60)>;
         };
         l2: layer2 {
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&to 2>, <&rgb_ug RGB_COLOR_HSB(120,100,60)>;
+            bindings = <&to 2>, <&rgb_ug RGB_ON>, <&rgb_ug RGB_COLOR_HSB(120,100,60)>;
         };
         l3: layer3 {
             compatible = "zmk,behavior-macro";
             #binding-cells = <0>;
-            bindings = <&to 3>, <&rgb_ug RGB_COLOR_HSB(0,100,60)>;
+            bindings = <&to 3>, <&rgb_ug RGB_ON>, <&rgb_ug RGB_COLOR_HSB(0,100,60)>;
         };
 
         // AltGr+7 and AltGr+0 (Vial macros M0/M1). On a Norwegian layout these

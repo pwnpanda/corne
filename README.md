@@ -5,7 +5,7 @@
 ZMK firmware configuration for a Corne Choc v2.5 (Keebmaker, ordered Feb 2025)
 running wirelessly on **nice!nano v2** controllers. It is a port of an existing
 Vial/QMK layout (`corne.vil`) with one headline feature added: **the RGB
-underglow changes colour when you switch layers** (base = white, lower = blue,
+underglow changes colour when you switch layers** (base = off, lower = blue,
 raise = green, adjust = red). GitHub Actions builds flashable `.uf2` firmware
 on every push.
 
@@ -50,7 +50,7 @@ Layers (each entered via a colour-setting toggle key on the thumbs):
 
 | Layer | Colour | Reach it with | Contents |
 |-------|--------|---------------|----------|
-| 0 base | dim white | `&l0` (left outer thumb) | Colemak-DH + home-row mods |
+| 0 base | off (LEDs off) | `&l0` (left outer thumb) | Colemak-DH + home-row mods |
 | 1 lower | blue | `&l1` (right thumb) | numbers, nav, AltGr macros |
 | 2 raise | green | `&l2` (right thumb) | shifted nav, symbols |
 | 3 adjust | red | `&l3` (from lower/raise) | RGB, Bluetooth, bootloader |
@@ -107,13 +107,14 @@ There is no server component.
 ## Implemented features
 
 - Wireless (BLE) split on nice!nano v2, with USB fallback (`&out OUT_TOG`).
-- Per-layer underglow colour via toggle macros `&l0`–`&l3`.
+- Per-layer underglow colour via toggle macros `&l0`–`&l3` (base = off).
 - Four-layer Colemak-DH layout ported from the Vial config, with home-row mods,
   grave-escape, approximated Space Cadet parens, and hold-tap keys replacing
   the old tap dances.
 - Bluetooth profile management and bootloader access on the adjust layer.
 - OLED status screens (layer / battery / BT / output / WPM), blanked on idle.
-- Battery saving: RGB auto-off when idle, deep sleep after 30 min.
+- Battery saving: LEDs off on base layer, RGB auto-off when idle, deep sleep
+  after 30 min.
 
 **Known limitation — RGB scope.** ZMK drives the entire LED chain as one
 "underglow" colour; it has no QMK-style per-key RGB *matrix*. "Whole board
