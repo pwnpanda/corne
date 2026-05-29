@@ -68,10 +68,21 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 }
 
 #ifdef OLED_ENABLE
-// The OLED is portrait (~5 chars wide), so lines stack top-to-bottom. The
-// master shows, stacked: layer name, Caps state, last key pressed. We render
-// ASCII (lib/glcdfont.c has no logo glyphs, which is why the slave's default
-// logo render showed "snow"); returning false skips that render.
+// Master OLED rotated to PORTRAIT so text reads upright DOWN the long edge.
+// (crkbd's oled_init_kb only forces the slave's rotation; the core chains
+// oled_init_user(oled_init_kb(...)), so this sets the master.) Flip 270<->90
+// if it comes out upside-down.
+oled_rotation_t oled_init_user(oled_rotation_t rotation) {
+    return is_keyboard_master() ? OLED_ROTATION_270 : OLED_ROTATION_90;
+}
+
+// Write a string one character per line, stacked down the screen.
+static void oled_write_vertical(const char *s) {
+    while (*s) {
+        oled_write_char(*s++, false);
+        oled_advance_page(true);
+    }
+}
 
 // Map a basic keycode to a printable char for the "last key" line.
 static const char code_to_name[60] PROGMEM = {
@@ -97,21 +108,21 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
 bool oled_task_user(void) {
     if (is_keyboard_master()) {
-        oled_write_ln_P(PSTR("Layer"), false);
+        // Layer name, stacked one letter per line.
         switch (get_highest_layer(layer_state)) {
-            case 1:  oled_write_ln_P(PSTR("Number"), false); break;
-            case 2:  oled_write_ln_P(PSTR("Symbol"), false); break;
-            case 3:  oled_write_ln_P(PSTR("Misc"),   false); break;
-            default: oled_write_ln_P(PSTR("Base"),   false); break;
+            case 1:  oled_write_vertical("Number"); break;
+            case 2:  oled_write_vertical("Symbol"); break;
+            case 3:  oled_write_vertical("Misc");   break;
+            default: oled_write_vertical("Base");   break;
         }
-        oled_write_ln_P(PSTR(""), false);
-        oled_write_ln_P(PSTR("Caps"), false);
-        oled_write_ln_P(host_keyboard_led_state().caps_lock ? PSTR("ON") : PSTR("off"), false);
-        oled_write_ln_P(PSTR(""), false);
-        oled_write_ln_P(PSTR("Key"), false);
-        oled_write_char(pgm_read_byte(&code_to_name[last_kc]), false);
+        oled_advance_page(true);                 // blank gap
+        if (host_keyboard_led_state().caps_lock) {
+            oled_write_vertical("CAPS");
+            oled_advance_page(true);
+        }
+        oled_write_char(pgm_read_byte(&code_to_name[last_kc]), false);  // last key
     } else {
-        oled_write_P(PSTR("corne\nwired"), false);
+        oled_write_vertical("corne");           // single column on the slave too
     }
     return false;
 }
