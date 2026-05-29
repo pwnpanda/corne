@@ -127,9 +127,9 @@ lighting only certain keys) are not available on ZMK.
   whether the double-tap tap-dance actions are needed, the `KC_2` pinky).
 - Layout refinement (the layout is expected to change — this port is the
   baseline).
-- **Future task — port-gap diagram:** a graphical keymap showing every key/
-  config that did not port cleanly (not ported, or partial support), with the
-  layer indicated by its 0-indexed number.
+- Port-gap diagram — **done**: see [`PORT-GAPS.md`](PORT-GAPS.md) (graphical
+  keymap of every key/config that didn't port cleanly, wireless + wired, with
+  layers 0-indexed).
 - **Future task — one-handed layer access:** redesign the layout around
   "change layer with one hand, select the key/data with the other hand"
   (thumb/pinky layer switches on one side, the symbol/number field on the
