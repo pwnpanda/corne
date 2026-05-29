@@ -114,7 +114,7 @@ There is no server component.
 - Bluetooth profile management and bootloader access on the adjust layer.
 - OLED status screens (layer / battery / BT / output / WPM), blanked on idle.
 - Battery saving: LEDs off on base layer, RGB auto-off when idle, deep sleep
-  after 30 min.
+  after 5 min.
 
 **Known limitation — RGB scope.** ZMK drives the entire LED chain as one
 "underglow" colour; it has no QMK-style per-key RGB *matrix*. "Whole board
@@ -127,6 +127,13 @@ lighting only certain keys) are not available on ZMK.
   whether the double-tap tap-dance actions are needed, the `KC_2` pinky).
 - Layout refinement (the layout is expected to change — this port is the
   baseline).
+- **Future task — port-gap diagram:** a graphical keymap showing every key/
+  config that did not port cleanly (not ported, or partial support), with the
+  layer indicated by its 0-indexed number.
+- **Future task — one-handed layer access:** redesign the layout around
+  "change layer with one hand, select the key/data with the other hand"
+  (thumb/pinky layer switches on one side, the symbol/number field on the
+  opposite side).
 - Optional: a richer OLED display module (bongo cat / widgets) — see *Displays*.
 - A wired QMK build for the original AVR hardware lives on the `wired` branch.
 
