@@ -74,15 +74,19 @@ oled_rotation_t oled_init_user(oled_rotation_t rotation) {
     return is_keyboard_master() ? OLED_ROTATION_270 : OLED_ROTATION_90;
 }
 
-// Write a string one character per line, stacked down the screen.
-static void oled_write_vertical(const char *s) {
-    while (*s) {
-        oled_write_char(*s++, false);
-        oled_advance_page(true);
-    }
+static void str_append(char *dst, const char *src) {
+    while (*dst) dst++;
+    while (*src) *dst++ = *src;
+    *dst = '\0';
 }
 
-// Map a basic keycode to a printable char for the "last key" line.
+static uint8_t slen(const char *s) {
+    uint8_t n = 0;
+    while (*s++) n++;
+    return n;
+}
+
+// Map a basic keycode to a printable char.
 static const char code_to_name[60] PROGMEM = {
     ' ', ' ', ' ', ' ', 'a', 'b', 'c', 'd', 'e', 'f',
     'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
@@ -90,7 +94,9 @@ static const char code_to_name[60] PROGMEM = {
     '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
     'R', 'E', 'B', 'T', ' ', '-', '=', '[', ']', '\\',
     '#', ';', '\'', '`', ',', '.', '/', ' ', ' ', ' '};
-static uint8_t last_kc = 0;
+
+// Ring buffer of the last 4 printable keys (oldest -> newest).
+static char last_keys[4] = {' ', ' ', ' ', ' '};
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (record->event.pressed) {
@@ -99,28 +105,66 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             (keycode >= QK_LAYER_TAP && keycode <= QK_LAYER_TAP_MAX)) {
             keycode &= 0xFF;
         }
-        if (keycode < 60) last_kc = keycode;
+        if (keycode < 60) {
+            last_keys[0] = last_keys[1];
+            last_keys[1] = last_keys[2];
+            last_keys[2] = last_keys[3];
+            last_keys[3] = pgm_read_byte(&code_to_name[keycode]);
+        }
     }
     return true;
 }
 
 bool oled_task_user(void) {
+    oled_clear();
     if (is_keyboard_master()) {
-        // Layer name, stacked one letter per line.
+        // Three columns down the screen: layer | last keys | locks.
+        // Rendered ROW BY ROW (no oled_set_cursor — that corrupts memory in
+        // rotated mode). Each portrait row is 5 chars: [col0] [gap] [col2]
+        // [gap] [col4]. Columns sit at char positions 0, 2 and 4.
+        const char *layer;
         switch (get_highest_layer(layer_state)) {
-            case 1:  oled_write_vertical("Number"); break;
-            case 2:  oled_write_vertical("Symbol"); break;
-            case 3:  oled_write_vertical("Misc");   break;
-            default: oled_write_vertical("Base");   break;
+            case 1:  layer = "NUMBER"; break;
+            case 2:  layer = "SYMBOL"; break;
+            case 3:  layer = "MISC";   break;
+            default: layer = "BASE";   break;
         }
-        oled_advance_page(true);                 // blank gap
-        if (host_keyboard_led_state().caps_lock) {
-            oled_write_vertical("CAPS");
+        char locks[16] = "";
+        led_t led = host_keyboard_led_state();
+        if (led.caps_lock)                  str_append(locks, "Caps");
+        if (led.num_lock)   { if (locks[0]) str_append(locks, "-"); str_append(locks, "Num"); }
+        if (led.scroll_lock){ if (locks[0]) str_append(locks, "-"); str_append(locks, "Scrl"); }
+
+        uint8_t ll = slen(layer);
+        uint8_t lc = slen(locks);
+        uint8_t rows = ll;                 // tallest of the three columns
+        if (4  > rows) rows = 4;
+        if (lc > rows) rows = lc;
+        uint8_t top = (16 - rows) / 2;     // vertical centering (16 rows tall)
+
+        for (uint8_t i = 0; i < top; i++) {
             oled_advance_page(true);
         }
-        oled_write_char(pgm_read_byte(&code_to_name[last_kc]), false);  // last key
+        for (uint8_t r = 0; r < rows; r++) {
+            char line[6];
+            line[0] = r < ll ? layer[r]     : ' ';
+            line[1] = ' ';
+            line[2] = r < 4  ? last_keys[r] : ' ';
+            line[3] = ' ';
+            line[4] = r < lc ? locks[r]     : ' ';
+            line[5] = '\0';
+            oled_write_ln(line, false);
+        }
     } else {
-        oled_write_vertical("corne");           // single column on the slave too
+        // Slave: "corne" one char per line, centered-ish.
+        const char *s = "corne";
+        oled_advance_page(true);
+        oled_advance_page(true);
+        oled_advance_page(true);
+        while (*s) {
+            char c[2] = {*s++, '\0'};
+            oled_write_ln(c, false);
+        }
     }
     return false;
 }
