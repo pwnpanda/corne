@@ -53,10 +53,11 @@ void keyboard_post_init_user(void) {
     rgblight_sethsv_noeeprom(HSV_BASE);
 }
 
-// Lower (1) + Raise (2) held together activates Adjust (3), as is conventional.
 // Colour follows the highest active layer. _noeeprom avoids flash wear.
+// No tri-layer here: layers are reached directly via TO()/MO() (including your
+// imported Vial layout's TO(3)). Forcing tri-layer would clear layer 3 the
+// instant TO(3) set it, which is why layer 3 looked dead.
 layer_state_t layer_state_set_user(layer_state_t state) {
-    state = update_tri_layer_state(state, 1, 2, 3);
     switch (get_highest_layer(state)) {
         case 1:  rgblight_sethsv_noeeprom(HSV_LOWER);  break;
         case 2:  rgblight_sethsv_noeeprom(HSV_RAISE);  break;
