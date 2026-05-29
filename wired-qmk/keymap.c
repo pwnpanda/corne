@@ -76,15 +76,26 @@ oled_rotation_t oled_init_user(oled_rotation_t rotation) {
     return is_keyboard_master() ? OLED_ROTATION_270 : OLED_ROTATION_90;
 }
 
-// Write a string one character per line, stacked down the screen.
-static void oled_write_vertical(const char *s) {
+// Portrait gives 5 char-columns (0-4) x 16 rows. We use 3 columns with a blank
+// gap between them: col 0 = layer, col 2 = last keys, col 4 = locks.
+
+// Write a string vertically (one char per row) down a fixed column.
+static void oled_col(uint8_t col, const char *s) {
+    uint8_t row = 0;
     while (*s) {
+        oled_set_cursor(col, row++);
         oled_write_char(*s++, false);
-        oled_advance_page(true);
     }
 }
 
-// Map a basic keycode to a printable char for the "last key" line.
+// Append src onto dst (small fixed buffers; avoids pulling in snprintf).
+static void str_append(char *dst, const char *src) {
+    while (*dst) dst++;
+    while (*src) *dst++ = *src;
+    *dst = '\0';
+}
+
+// Map a basic keycode to a printable char.
 static const char code_to_name[60] PROGMEM = {
     ' ', ' ', ' ', ' ', 'a', 'b', 'c', 'd', 'e', 'f',
     'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
@@ -92,7 +103,9 @@ static const char code_to_name[60] PROGMEM = {
     '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
     'R', 'E', 'B', 'T', ' ', '-', '=', '[', ']', '\\',
     '#', ';', '\'', '`', ',', '.', '/', ' ', ' ', ' '};
-static uint8_t last_kc = 0;
+
+// Ring buffer of the last 4 printable keys (oldest -> newest).
+static char last_keys[4] = {' ', ' ', ' ', ' '};
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (record->event.pressed) {
@@ -101,28 +114,38 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             (keycode >= QK_LAYER_TAP && keycode <= QK_LAYER_TAP_MAX)) {
             keycode &= 0xFF;
         }
-        if (keycode < 60) last_kc = keycode;
+        if (keycode < 60) {
+            last_keys[0] = last_keys[1];
+            last_keys[1] = last_keys[2];
+            last_keys[2] = last_keys[3];
+            last_keys[3] = pgm_read_byte(&code_to_name[keycode]);
+        }
     }
     return true;
 }
 
 bool oled_task_user(void) {
+    oled_clear();
     if (is_keyboard_master()) {
-        // Layer name, stacked one letter per line.
+        // Column 0: layer name, UPPERCASE.
         switch (get_highest_layer(layer_state)) {
-            case 1:  oled_write_vertical("Number"); break;
-            case 2:  oled_write_vertical("Symbol"); break;
-            case 3:  oled_write_vertical("Misc");   break;
-            default: oled_write_vertical("Base");   break;
+            case 1:  oled_col(0, "NUMBER"); break;
+            case 2:  oled_col(0, "SYMBOL"); break;
+            case 3:  oled_col(0, "MISC");   break;
+            default: oled_col(0, "BASE");   break;
         }
-        oled_advance_page(true);                 // blank gap
-        if (host_keyboard_led_state().caps_lock) {
-            oled_write_vertical("CAPS");
-            oled_advance_page(true);
-        }
-        oled_write_char(pgm_read_byte(&code_to_name[last_kc]), false);  // last key
+        // Column 2: last 4 keys (oldest at top, newest at bottom).
+        char keys[5] = {last_keys[0], last_keys[1], last_keys[2], last_keys[3], '\0'};
+        oled_col(2, keys);
+        // Column 4: active lock indicators, dash-separated.
+        char locks[16] = "";
+        led_t led = host_keyboard_led_state();
+        if (led.caps_lock)                  str_append(locks, "Caps");
+        if (led.num_lock)   { if (locks[0]) str_append(locks, "-"); str_append(locks, "Num"); }
+        if (led.scroll_lock){ if (locks[0]) str_append(locks, "-"); str_append(locks, "Scrl"); }
+        oled_col(4, locks);
     } else {
-        oled_write_vertical("corne");           // single column on the slave too
+        oled_col(0, "corne");
     }
     return false;
 }
