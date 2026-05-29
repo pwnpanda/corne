@@ -1,0 +1,7 @@
+# Local west / Zephyr build output (firmware is built in CI, not locally)
+/build/
+/zmk/
+/zephyr/
+/modules/
+/.west/
+*.uf2

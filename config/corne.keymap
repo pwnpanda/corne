@@ -1,0 +1,150 @@
+/*
+ * Corne Choc v2.5 (Keebmaker) — ZMK keymap
+ * Ported from Vial (corne.vil). See CHANGES-from-vial.md for every
+ * QMK -> ZMK translation decision and the lossy conversions.
+ *
+ * Layers: 0 base (Colemak-DH) / 1 lower (num+nav) / 2 raise (shifted nav)
+ *         3 adjust (RGB, Bluetooth, bootloader)
+ *
+ * Per-layer colour: each layer is entered through an &lN macro that switches
+ * the layer AND sets the underglow colour in one shot. Toggle-based (&to),
+ * matching the original TO() navigation, so exactly one colour is active at a
+ * time and it is set reliably on every switch.
+ */
+
+#include <behaviors.dtsi>
+#include <dt-bindings/zmk/keys.h>
+#include <dt-bindings/zmk/rgb.h>
+#include <dt-bindings/zmk/bt.h>
+#include <dt-bindings/zmk/outputs.h>
+
+/ {
+    behaviors {
+        // Generic keycode-on-hold / keycode-on-tap. ZMK has no QMK-style
+        // multi-action tap dance; the original tap dances that were really
+        // just "tap X, hold Y" map cleanly onto this hold-tap.
+        hk: hold_key {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            flavor = "tap-preferred";
+            tapping-term-ms = <200>;
+            quick-tap-ms = <175>;
+            bindings = <&kp>, <&kp>;
+        };
+
+        // Grave-escape: ESC normally, GRAVE (`/~) when Shift or GUI is held.
+        grave_escape: grave_escape {
+            compatible = "zmk,behavior-mod-morph";
+            #binding-cells = <0>;
+            bindings = <&kp ESC>, <&kp GRAVE>;
+            mods = <(MOD_LSFT|MOD_RSFT|MOD_LGUI|MOD_RGUI)>;
+        };
+    };
+
+    macros {
+        // Layer switch + underglow colour, in one binding.
+        // Base = dim white, lower = blue, raise = green, adjust = red.
+        l0: layer0 {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&to 0>, <&rgb_ug RGB_COLOR_HSB(0,0,40)>;
+        };
+        l1: layer1 {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&to 1>, <&rgb_ug RGB_COLOR_HSB(225,100,60)>;
+        };
+        l2: layer2 {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&to 2>, <&rgb_ug RGB_COLOR_HSB(120,100,60)>;
+        };
+        l3: layer3 {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&to 3>, <&rgb_ug RGB_COLOR_HSB(0,100,60)>;
+        };
+
+        // AltGr+7 and AltGr+0 (Vial macros M0/M1). On a Norwegian layout these
+        // produce { and }. The QMK key_override on M0 (-> 8 under mods) has no
+        // ZMK equivalent and is dropped — see CHANGES-from-vial.md.
+        altgr_7: altgr_7 {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&macro_press &kp RALT>
+                     , <&macro_tap &kp N7>
+                     , <&macro_release &kp RALT>;
+        };
+        altgr_0: altgr_0 {
+            compatible = "zmk,behavior-macro";
+            #binding-cells = <0>;
+            bindings = <&macro_press &kp RALT>
+                     , <&macro_tap &kp N0>
+                     , <&macro_release &kp RALT>;
+        };
+    };
+
+    combos {
+        compatible = "zmk,combos";
+        // Vial combo: LSPO + Backspace -> Delete. Positions: left-shift (24)
+        // + backspace thumb (37).
+        combo_del {
+            timeout-ms = <50>;
+            key-positions = <24 37>;
+            bindings = <&kp DEL>;
+            layers = <0>;
+        };
+    };
+
+    keymap {
+        compatible = "zmk,keymap";
+
+        base_layer {
+            display-name = "Base";
+            bindings = <
+&kp TAB         &kp Q       &kp W       &kp F       &kp P       &kp B         &kp J          &kp L       &kp U          &kp Y          &kp COMMA   &kp DOT
+&mt RCTRL RPAR &mt LGUI A  &mt LCTRL R &mt LALT S  &mt LSHFT T &kp G         &kp M          &mt RSHFT N &mt RALT E     &mt RCTRL I    &mt RGUI O  &kp N2
+&mt LSHFT LPAR &kp Z       &kp X       &kp C       &kp D       &kp V         &kp K          &kp H       &kp NON_US_BSLH &hk SEMI LBKT &hk SEMI SQT &grave_escape
+                                       &l0         &hk DEL BSPC &kp SPACE    &kp RET        &l1         &l2
+            >;
+        };
+
+        lower_layer {
+            display-name = "Lower";
+            bindings = <
+&trans      &altgr_7      &altgr_0      &kp N8        &kp HOME    &kp PG_UP     &kp PG_DN   &kp END      &kp N9       &kp NON_US_BSLH &kp KP_DIVIDE &kp KP_MULTIPLY
+&trans      &mt LGUI N1   &mt LCTRL N2  &mt LALT N3   &mt LSHFT N4 &kp N5       &kp N6      &mt RSHFT N7 &mt RALT N8  &mt RCTRL N9    &mt LGUI N0   &kp SLASH
+&trans      &kp EQUAL     &kp NON_US_BSLH &kp GRAVE   &kp LEFT    &kp UP        &kp DOWN    &kp RIGHT    &kp NON_US_HASH &kp MINUS    &kp KP_DOT    &kp KP_PLUS
+                                        &trans        &trans      &trans        &l0         &l3          &l2
+            >;
+        };
+
+        raise_layer {
+            display-name = "Raise";
+            bindings = <
+&trans      &trans        &mt LSHFT HOME &mt LSHFT UP  &mt LSHFT END &kp PG_UP   &kp PG_UP   &mt LSHFT N7 &mt LSHFT N8 &mt LSHFT N9 &trans      &trans
+&trans      &kp RALT      &mt LSHFT LEFT &mt LSHFT DOWN &mt LSHFT RIGHT &kp PG_DN &kp PG_DN  &mt LSHFT N4 &mt LSHFT N5 &mt LSHFT N6 &trans      &trans
+&trans      &trans        &kp GRAVE     &mt LSHFT NON_US_BSLH &mt LSHFT RBKT &mt LSHFT N0 &mt LSHFT N0 &mt LSHFT N1 &mt LSHFT N2 &mt LSHFT N3 &kp RBKT &trans
+                                        &trans        &trans      &trans        &l0         &l3          &trans
+            >;
+        };
+
+        adjust_layer {
+            display-name = "Adjust";
+            bindings = <
+&bootloader &rgb_ug RGB_COLOR_HSB(120,100,60) &rgb_ug RGB_COLOR_HSB(0,100,60) &rgb_ug RGB_COLOR_HSB(225,100,60) &none &none   &bt BT_CLR &bt BT_SEL 0 &bt BT_SEL 1 &bt BT_SEL 2 &bt BT_SEL 3 &out OUT_TOG
+&rgb_ug RGB_TOG &rgb_ug RGB_HUI &rgb_ug RGB_SAI &rgb_ug RGB_BRI &none &rgb_ug RGB_SPI                                       &none      &none        &none        &none        &none        &none
+&rgb_ug RGB_EFF &rgb_ug RGB_HUD &rgb_ug RGB_SAD &rgb_ug RGB_BRD &none &rgb_ug RGB_SPD                                       &none      &none        &none        &none        &none        &none
+                                        &trans        &trans      &trans        &l0         &trans       &trans
+            >;
+        };
+    };
+};
+
+// Home-row mods and every LSFT_T(...) key use the built-in &mt. Tune it for
+// home-row use so quick letter rolls don't accidentally fire modifiers.
+&mt {
+    flavor = "tap-preferred";
+    tapping-term-ms = <200>;
+    quick-tap-ms = <175>;
+};

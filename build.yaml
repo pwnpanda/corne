@@ -1,0 +1,11 @@
+# Matrix of firmware images GitHub Actions builds on every push.
+# Each entry produces one flashable .uf2.
+---
+include:
+  - board: nice_nano_v2
+    shield: corne_left
+  - board: nice_nano_v2
+    shield: corne_right
+  # Flash this to wipe stored Bluetooth bonds / settings when pairing breaks.
+  - board: nice_nano_v2
+    shield: settings_reset
