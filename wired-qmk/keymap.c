@@ -15,7 +15,7 @@
 #include QMK_KEYBOARD_H
 
 // HSV in QMK is 0-255 per channel. Hues: red 0, green 85, blue 170.
-#define HSV_BASE   0,   0,  90   // dim white
+#define HSV_BASE   36,  109, 254  // warm cream = rgb(254,238,145) (QMK HSV, 0-255 each)
 #define HSV_LOWER  170, 255, 150 // blue
 #define HSV_RAISE  85,  255, 150 // green
 #define HSV_ADJUST 0,   255, 150 // red
