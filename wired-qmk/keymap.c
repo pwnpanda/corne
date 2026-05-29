@@ -9,7 +9,7 @@
  * the only thing that matters here is layer_state_set_user(), which colours the
  * underglow per layer. Build against Vial-QMK so Vial GUI editing still works.
  *
- * Layers: 0 base / 1 lower / 2 raise / 3 adjust.
+ * Layers: 0 base / 1 number / 2 symbol / 3 misc.
  */
 
 #include QMK_KEYBOARD_H
@@ -99,10 +99,10 @@ bool oled_task_user(void) {
     if (is_keyboard_master()) {
         oled_write_ln_P(PSTR("Layer"), false);
         switch (get_highest_layer(layer_state)) {
-            case 1:  oled_write_ln_P(PSTR("Lower"), false); break;
-            case 2:  oled_write_ln_P(PSTR("Raise"), false); break;
-            case 3:  oled_write_ln_P(PSTR("Adj"),   false); break;
-            default: oled_write_ln_P(PSTR("Base"),  false); break;
+            case 1:  oled_write_ln_P(PSTR("Number"), false); break;
+            case 2:  oled_write_ln_P(PSTR("Symbol"), false); break;
+            case 3:  oled_write_ln_P(PSTR("Misc"),   false); break;
+            default: oled_write_ln_P(PSTR("Base"),   false); break;
         }
         oled_write_ln_P(PSTR(""), false);
         oled_write_ln_P(PSTR("Caps"), false);
