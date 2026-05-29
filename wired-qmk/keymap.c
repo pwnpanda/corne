@@ -66,3 +66,24 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     }
     return state;
 }
+
+#ifdef OLED_ENABLE
+// crkbd.c renders the Corne logo on the slave half using font glyphs 0x80+,
+// but this build's font (lib/glcdfont.c) is the plain ASCII font with no logo
+// there — so the slave drew garbage ("snow"). Render clean ASCII on both halves
+// instead. Returning false skips crkbd.c's snowy logo render.
+bool oled_task_user(void) {
+    if (is_keyboard_master()) {
+        oled_write_P(PSTR("Layer: "), false);
+        switch (get_highest_layer(layer_state)) {
+            case 1:  oled_write_ln_P(PSTR("Lower"),  false); break;
+            case 2:  oled_write_ln_P(PSTR("Raise"),  false); break;
+            case 3:  oled_write_ln_P(PSTR("Adjust"), false); break;
+            default: oled_write_ln_P(PSTR("Base"),   false); break;
+        }
+    } else {
+        oled_write_P(PSTR("corne\nv2.5\nwired"), false);
+    }
+    return false;
+}
+#endif
