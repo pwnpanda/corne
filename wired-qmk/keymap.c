@@ -54,9 +54,9 @@ void keyboard_post_init_user(void) {
 }
 
 // Colour follows the highest active layer. _noeeprom avoids flash wear.
-// No tri-layer here: layers are reached directly via TO()/MO() (including your
-// imported Vial layout's TO(3)). Forcing tri-layer would clear layer 3 the
-// instant TO(3) set it, which is why layer 3 looked dead.
+// No tri-layer: layers are reached directly via TO()/MO() (incl. the imported
+// Vial layout's TO(3)). Forcing tri-layer would clear layer 3 the instant
+// TO(3) set it, which is why layer 3 looked dead.
 layer_state_t layer_state_set_user(layer_state_t state) {
     switch (get_highest_layer(state)) {
         case 1:  rgblight_sethsv_noeeprom(HSV_LOWER);  break;
@@ -68,11 +68,18 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 }
 
 #ifdef OLED_ENABLE
-// Master OLED rotated to PORTRAIT so text reads upright DOWN the long edge.
-// Flip 270<->90 if it comes out upside-down.
+// Master OLED in PORTRAIT (text reads down the long edge). Flip 270<->90 if
+// upside-down.
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
     return is_keyboard_master() ? OLED_ROTATION_270 : OLED_ROTATION_90;
 }
+
+// IMPORTANT: rendering uses ONLY oled_write_char(). In rotated mode the
+// line-write and cursor-positioning helpers pad/index using the un-rotated
+// grid, overrun the framebuffer, and crash. The display is 5 chars x 16 rows;
+// we paint all 80 cells every frame, so it self-clears and the cursor cycles.
+#define OLED_COLS 5
+#define OLED_ROWS 16
 
 static void str_append(char *dst, const char *src) {
     while (*dst) dst++;
@@ -95,12 +102,13 @@ static const char code_to_name[60] PROGMEM = {
     'R', 'E', 'B', 'T', ' ', '-', '=', '[', ']', '\\',
     '#', ';', '\'', '`', ',', '.', '/', ' ', ' ', ' '};
 
-// Ring buffer of the last 4 printable keys (oldest -> newest).
+// Last 4 printable keys (oldest -> newest) and the locks string live in bss,
+// not on the stack.
 static char last_keys[4] = {' ', ' ', ' ', ' '};
+static char locks[16];
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (record->event.pressed) {
-        // Strip mod-tap / layer-tap down to the tapped keycode.
         if ((keycode >= QK_MOD_TAP && keycode <= QK_MOD_TAP_MAX) ||
             (keycode >= QK_LAYER_TAP && keycode <= QK_LAYER_TAP_MAX)) {
             keycode &= 0xFF;
@@ -115,14 +123,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     return true;
 }
 
+static char char_at(const char *s, uint8_t len, uint8_t i) {
+    return i < len ? s[i] : ' ';
+}
+
 bool oled_task_user(void) {
-    oled_clear();
     if (is_keyboard_master()) {
-        // Three columns down the screen: layer | last keys | locks.
-        // Rendered ROW BY ROW; we never reposition the cursor (jumping it past
-        // the panel's 4-line grid corrupts memory in rotated mode). Each
-        // portrait row is 5 chars: [col0] [gap] [col2] [gap] [col4]. Columns
-        // sit at char positions 0, 2 and 4.
         const char *layer;
         switch (get_highest_layer(layer_state)) {
             case 1:  layer = "NUMBER"; break;
@@ -130,7 +136,7 @@ bool oled_task_user(void) {
             case 3:  layer = "MISC";   break;
             default: layer = "BASE";   break;
         }
-        char locks[16] = "";
+        locks[0] = '\0';
         led_t led = host_keyboard_led_state();
         if (led.caps_lock)                  str_append(locks, "Caps");
         if (led.num_lock)   { if (locks[0]) str_append(locks, "-"); str_append(locks, "Num"); }
@@ -138,33 +144,29 @@ bool oled_task_user(void) {
 
         uint8_t ll = slen(layer);
         uint8_t lc = slen(locks);
-        uint8_t rows = ll;                 // tallest of the three columns
+        uint8_t rows = ll;
         if (4  > rows) rows = 4;
         if (lc > rows) rows = lc;
-        uint8_t top = (16 - rows) / 2;     // vertical centering (16 rows tall)
+        uint8_t top = (OLED_ROWS - rows) / 2;   // vertical centering
 
-        for (uint8_t i = 0; i < top; i++) {
-            oled_advance_page(true);
-        }
-        for (uint8_t r = 0; r < rows; r++) {
-            char line[6];
-            line[0] = r < ll ? layer[r]     : ' ';
-            line[1] = ' ';
-            line[2] = r < 4  ? last_keys[r] : ' ';
-            line[3] = ' ';
-            line[4] = r < lc ? locks[r]     : ' ';
-            line[5] = '\0';
-            oled_write_ln(line, false);
+        for (uint8_t y = 0; y < OLED_ROWS; y++) {
+            uint8_t r = (y >= top) ? (uint8_t)(y - top) : 255;
+            oled_write_char(char_at(layer, ll, r), false);
+            oled_write_char(' ', false);
+            oled_write_char(char_at(last_keys, 4, r), false);
+            oled_write_char(' ', false);
+            oled_write_char(char_at(locks, lc, r), false);
         }
     } else {
-        // Slave: "corne" one char per line, centered-ish.
         const char *s = "corne";
-        oled_advance_page(true);
-        oled_advance_page(true);
-        oled_advance_page(true);
-        while (*s) {
-            char c[2] = {*s++, '\0'};
-            oled_write_ln(c, false);
+        uint8_t top = (OLED_ROWS - 5) / 2;
+        for (uint8_t y = 0; y < OLED_ROWS; y++) {
+            uint8_t r = (y >= top) ? (uint8_t)(y - top) : 255;
+            oled_write_char(char_at(s, 5, r), false);
+            oled_write_char(' ', false);
+            oled_write_char(' ', false);
+            oled_write_char(' ', false);
+            oled_write_char(' ', false);
         }
     }
     return false;
