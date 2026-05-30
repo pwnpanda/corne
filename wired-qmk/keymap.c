@@ -128,6 +128,15 @@ static char char_at(const char *s, uint8_t len, uint8_t i) {
 }
 
 bool oled_task_user(void) {
+    // Throttle to ~20 Hz. Repainting all 80 cells every scan cycle (plus the
+    // blocking I2C flush) starved the matrix scan / split comms, causing the
+    // keyboard to lag then freeze after a few keystrokes. Skip most cycles.
+    static uint16_t last_draw = 0;
+    if (timer_elapsed(last_draw) < 50) {
+        return false;
+    }
+    last_draw = timer_read();
+
     if (is_keyboard_master()) {
         const char *layer;
         switch (get_highest_layer(layer_state)) {
