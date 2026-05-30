@@ -68,10 +68,10 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 }
 
 #ifdef OLED_ENABLE
-// Master OLED in PORTRAIT (text reads down the long edge). Flip 270<->90 if
-// upside-down.
+// Both OLEDs in PORTRAIT (text reads down the long edge), same rotation so the
+// slave isn't upside-down. Flip to OLED_ROTATION_90 if it ever mounts inverted.
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
-    return is_keyboard_master() ? OLED_ROTATION_270 : OLED_ROTATION_90;
+    return OLED_ROTATION_270;
 }
 
 // IMPORTANT: rendering uses ONLY oled_write_char(). In rotated mode the
