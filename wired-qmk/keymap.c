@@ -69,7 +69,8 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 
 #ifdef OLED_ENABLE
 // Both OLEDs in PORTRAIT (text reads down the long edge), same rotation so the
-// slave isn't upside-down. Flip to OLED_ROTATION_90 if it ever mounts inverted.
+// slave isn't upside-down. Use the 90-degree variant instead if a half ever
+// mounts inverted.
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
     return OLED_ROTATION_270;
 }
