@@ -78,7 +78,7 @@ oled_rotation_t oled_init_user(oled_rotation_t rotation) {
 // IMPORTANT: rendering uses ONLY oled_write_char(). In rotated mode the
 // line-write and cursor-positioning helpers pad/index using the un-rotated
 // grid, overrun the framebuffer, and crash. The display is 5 chars x 16 rows;
-// we paint all 80 cells every frame, so it self-clears and the cursor cycles.
+// we paint all 80 cells, so it self-clears and the cursor cycles.
 #define OLED_COLS 5
 #define OLED_ROWS 16
 
@@ -103,8 +103,7 @@ static const char code_to_name[60] PROGMEM = {
     'R', 'E', 'B', 'T', ' ', '-', '=', '[', ']', '\\',
     '#', ';', '\'', '`', ',', '.', '/', ' ', ' ', ' '};
 
-// Last 4 printable keys (oldest -> newest) and the locks string live in bss,
-// not on the stack.
+// Last 4 printable keys (oldest -> newest) and the locks string live in bss.
 static char last_keys[4] = {' ', ' ', ' ', ' '};
 static char locks[16];
 
@@ -129,30 +128,47 @@ static char char_at(const char *s, uint8_t len, uint8_t i) {
 }
 
 bool oled_task_user(void) {
-    // Throttle to ~20 Hz. Repainting all 80 cells every scan cycle (plus the
-    // blocking I2C flush) starved the matrix scan / split comms, causing the
-    // keyboard to lag then freeze after a few keystrokes. Skip most cycles.
-    static uint16_t last_draw = 0;
-    if (timer_elapsed(last_draw) < 50) {
+    // Throttle to ~20 Hz, then only repaint when content actually changed.
+    // Repainting every scan cycle starved the loop (lag/freeze); change-
+    // detection also stops boot flicker and cuts I2C flushes.
+    static uint16_t last_eval = 0;
+    if (timer_elapsed(last_eval) < 50) {
         return false;
     }
-    last_draw = timer_read();
+    last_eval = timer_read();
+    oled_on();   // wired board: keep panels awake so a skipped redraw is never blank
 
     if (is_keyboard_master()) {
-        const char *layer;
-        switch (get_highest_layer(layer_state)) {
-            case 1:  layer = "NUMBER"; break;
-            case 2:  layer = "SYMBOL"; break;
-            case 3:  layer = "MISC";   break;
-            default: layer = "BASE";   break;
+        uint8_t layer = get_highest_layer(layer_state);
+        led_t   led   = host_keyboard_led_state();
+
+        // Skip the repaint unless layer / locks / last keys changed.
+        static uint8_t p_layer = 0xFF;
+        static uint8_t p_led   = 0xFF;
+        static char    p_keys[4] = {1, 1, 1, 1};
+        if (layer == p_layer && led.raw == p_led &&
+            p_keys[0] == last_keys[0] && p_keys[1] == last_keys[1] &&
+            p_keys[2] == last_keys[2] && p_keys[3] == last_keys[3]) {
+            return false;
+        }
+        p_layer = layer;
+        p_led   = led.raw;
+        p_keys[0] = last_keys[0]; p_keys[1] = last_keys[1];
+        p_keys[2] = last_keys[2]; p_keys[3] = last_keys[3];
+
+        const char *name;
+        switch (layer) {
+            case 1:  name = "NUMBER"; break;
+            case 2:  name = "SYMBOL"; break;
+            case 3:  name = "MISC";   break;
+            default: name = "BASE";   break;
         }
         locks[0] = '\0';
-        led_t led = host_keyboard_led_state();
         if (led.caps_lock)                  str_append(locks, "Caps");
         if (led.num_lock)   { if (locks[0]) str_append(locks, "-"); str_append(locks, "Num"); }
         if (led.scroll_lock){ if (locks[0]) str_append(locks, "-"); str_append(locks, "Scrl"); }
 
-        uint8_t ll = slen(layer);
+        uint8_t ll = slen(name);
         uint8_t lc = slen(locks);
         uint8_t rows = ll;
         if (4  > rows) rows = 4;
@@ -161,13 +177,18 @@ bool oled_task_user(void) {
 
         for (uint8_t y = 0; y < OLED_ROWS; y++) {
             uint8_t r = (y >= top) ? (uint8_t)(y - top) : 255;
-            oled_write_char(char_at(layer, ll, r), false);
+            oled_write_char(char_at(name, ll, r), false);
             oled_write_char(' ', false);
             oled_write_char(char_at(last_keys, 4, r), false);
             oled_write_char(' ', false);
             oled_write_char(char_at(locks, lc, r), false);
         }
     } else {
+        static bool drawn = false;   // slave content is static; draw once
+        if (drawn) {
+            return false;
+        }
+        drawn = true;
         const char *s = "corne";
         uint8_t top = (OLED_ROWS - 5) / 2;
         for (uint8_t y = 0; y < OLED_ROWS; y++) {
